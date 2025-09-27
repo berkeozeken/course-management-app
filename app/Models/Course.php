@@ -9,5 +9,7 @@ class Course extends Model
 
     public function owner(){ return $this->belongsTo(User::class,'owner_id'); }
     public function sections(){ return $this->hasMany(Section::class)->orderBy('position'); }
-    public function enrollments(){ return $this->hasMany(Enrollment::class); }
+    public function enrollments(){ return $this->hasMany(\App\Models\Enrollment::class); }
+
+    public function students(){return $this->belongsToMany(\App\Models\User::class, 'enrollments')    ->withTimestamps()    ->withPivot('status');    }
 }

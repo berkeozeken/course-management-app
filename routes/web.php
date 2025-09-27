@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\LessonController;
+use App\Http\Controllers\EnrollmentController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -11,19 +12,24 @@ use Inertia\Inertia;
 // Liste
 Route::get('/courses', [CourseController::class,'index'])->name('courses.index');
 
-Route::middleware('auth')->group(function () {
-    // Profil
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
-    // Course create/store
+// Admin & Instructor için kurs CRUD
+Route::middleware(['auth','role:admin,instructor'])->group(function () {
     Route::get('/courses/create', [CourseController::class,'create'])->name('courses.create');
     Route::post('/courses', [CourseController::class,'store'])->name('courses.store');
+    Route::get('/courses/{slug}/edit', [CourseController::class,'edit'])->name('courses.edit');
+    Route::patch('/courses/{slug}', [CourseController::class,'update'])->name('courses.update');
+    Route::delete('/courses/{slug}', [CourseController::class,'destroy'])->name('courses.destroy');
 
-    // Section ekle (slug ile binding)
-    Route::post('/courses/{course:slug}/sections', [SectionController::class,'store'])->name('sections.store');
-    Route::post('/sections/{section}/lessons', [LessonController::class, 'store'])->name('lessons.store');
+    // Lesson CRUD (web route üzerinden çalışsın diye)
+    Route::post('/lessons', [LessonController::class,'store'])->name('lessons.store');
+    Route::patch('/lessons/{lesson}', [LessonController::class,'update'])->name('lessons.update');
+    Route::delete('/lessons/{lesson}', [LessonController::class,'destroy'])->name('lessons.destroy');
+});
+
+// Enrollment (öğrenci kursa kaydol/iptal etsin)
+Route::middleware(['auth'])->group(function () {
+    Route::post('/enrollments', [EnrollmentController::class,'store'])->name('enrollments.store');
+    Route::delete('/enrollments/{enrollment}', [EnrollmentController::class,'destroy'])->name('enrollments.destroy');
 });
 
 // Dinamik detay EN SONA (sıra önemli!)

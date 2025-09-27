@@ -7,19 +7,9 @@ use App\Models\User;
 
 class CoursePolicy
 {
-    public function viewAny(?User $user): bool { return true; }
-    public function view(?User $user, Course $course): bool { return true; }
-
-    public function create(User $user): bool {
-        return in_array($user->role, ['instructor','admin']);
-    }
-
-    public function update(User $user, Course $course): bool {
-        return $user->role === 'admin'
-            || ($user->role === 'instructor' && $course->owner_id === $user->id);
-    }
-
-    public function delete(User $user, Course $course): bool {
-        return $this->update($user, $course);
-    }
+    public function viewAny(User $u){ return in_array($u->role, ['instructor','admin']); }
+    public function view(?User $u, Course $c){ return true; }
+    public function create(User $u){ return in_array($u->role, ['instructor','admin']); }
+    public function update(User $u, Course $c){ return in_array($u->role, ['instructor','admin']); }
+    public function delete(User $u, Course $c){ return in_array($u->role, ['instructor','admin']); }
 }

@@ -18,11 +18,13 @@ class Course extends Model
         'cover_url',
         'is_published',
         'instructor_id',
+        'start_date',     // eklendi
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
         'price'        => 'decimal:2',
+        'start_date'   => 'date',      // eklendi
     ];
 
     /* =========================
@@ -48,6 +50,7 @@ class Course extends Model
 
     public function students()
     {
+        // pivot tablon mevcut koda göre: course_user
         return $this->belongsToMany(User::class, 'course_user')->withTimestamps();
     }
 

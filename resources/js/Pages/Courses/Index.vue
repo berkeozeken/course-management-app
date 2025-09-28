@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 defineOptions({ layout: AuthenticatedLayout })
 
 const props = defineProps({
-  courses: Object, // pagination
+  courses: Object, // paginator
 })
 
 const authUser = usePage().props.auth?.user
@@ -21,11 +21,11 @@ const authUser = usePage().props.auth?.user
       href="/courses/create"
       class="px-3 py-1.5 rounded-xl border bg-white hover:bg-gray-50 text-sm"
     >
-      + Yeni Kurs
+      + New Course
     </Link>
   </div>
 
-  <div class="grid sm:grid-cols-2 gap-6">
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
     <div
       v-for="course in props.courses.data"
       :key="course.id"
@@ -39,17 +39,17 @@ const authUser = usePage().props.auth?.user
             alt=""
             class="w-full h-40 object-cover"
           />
-          <span v-else class="text-gray-400 text-sm">Kapak yok</span>
+          <span v-else class="text-gray-400 text-sm">No cover</span>
         </div>
       </Link>
 
       <div class="p-4 space-y-1">
         <div class="text-xs text-gray-500">
-          <span class="font-medium">Eğitmen:</span>
+          <span class="font-medium">Instructor:</span>
           <span>
             {{
               (course.instructor?.id && authUser?.id && course.instructor.id === authUser.id)
-                ? 'Sen'
+                ? 'You'
                 : (course.instructor?.name ?? '—')
             }}
           </span>
@@ -60,24 +60,28 @@ const authUser = usePage().props.auth?.user
         </Link>
 
         <div class="text-xs text-gray-500">
-          {{ course.is_published ? 'Yayında' : 'Taslak' }}
+          {{ course.is_published ? 'Published' : 'Draft' }}
+        </div>
+
+        <div v-if="course.start_date" class="text-xs text-gray-600">
+          Start: {{ new Date(course.start_date).toLocaleDateString('en-US') }}
         </div>
 
         <div class="text-right text-sm text-gray-700 mt-2">
-          {{ course.price ? `₺${Number(course.price).toLocaleString('tr-TR')}` : 'Ücretsiz' }}
+          {{ course.price ? ('$' + Number(course.price).toLocaleString('en-US')) : 'Free' }}
         </div>
       </div>
     </div>
   </div>
 
-  <!-- basit pagination -->
+  <!-- simple pagination -->
   <div class="mt-8 flex items-center gap-2">
     <Link
       v-if="props.courses.prev_page_url"
       :href="props.courses.prev_page_url"
       class="px-3 py-1.5 rounded-lg border bg-white text-sm"
     >« Previous</Link>
-    <span class="text-sm">Sayfa {{ props.courses.current_page }}</span>
+    <span class="text-sm">Page {{ props.courses.current_page }}</span>
     <Link
       v-if="props.courses.next_page_url"
       :href="props.courses.next_page_url"

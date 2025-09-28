@@ -40,6 +40,7 @@ class CourseController extends Controller
             'price'        => ['nullable','numeric','min:0'],
             'cover_url'    => ['nullable','url','max:2048'],
             'is_published' => ['boolean'],
+            'start_date'   => ['nullable','date'],          // eklendi
         ]);
 
         $course = Course::create([
@@ -50,9 +51,10 @@ class CourseController extends Controller
             'cover_url'     => $data['cover_url'] ?? null,
             'is_published'  => $data['is_published'] ?? false,
             'instructor_id' => Auth::id(),
+            'start_date'    => $data['start_date'] ?? null, // eklendi
         ]);
 
-        return redirect()->route('courses.show', $course->id)->with('success','Kurs oluşturuldu.');
+        return redirect()->route('courses.show', $course->id)->with('success','Course created.');
     }
 
     public function show(Course $course)
@@ -68,15 +70,13 @@ class CourseController extends Controller
             abort(404);
         }
 
-        // kayıt kontrolü (modelde hangi ilişki varsa)
+        // kayıt kontrolü
         $isEnrolled = false;
         if ($userId) {
             if (method_exists($course, 'isEnrolledBy')) {
                 $isEnrolled = $course->isEnrolledBy($userId);
             } elseif (method_exists($course, 'students')) {
                 $isEnrolled = $course->students()->where('user_id', $userId)->exists();
-            } elseif (method_exists($course, 'enrollments')) {
-                $isEnrolled = $course->enrollments()->where('user_id', $userId)->exists();
             }
         }
 
@@ -84,26 +84,14 @@ class CourseController extends Controller
         $canManage = $this->hasRole(['admin','instructor']) &&
                      ($role === 'admin' || $course->instructor_id === $userId);
 
-        // ===== Eğitmen için katılımcılar (sayı + ilk 10) =====
+        // Eğitmen için katılımcılar (sayı + ilk 10)
         $participants = null;
         if ($canManage) {
-            if (method_exists($course, 'students')) {
-                $all = $course->students()
-                    ->select('users.id','users.name','users.email')
-                    ->withPivot('created_at')
-                    ->orderBy('users.name')
-                    ->get();
-            } else {
-                $all = $course->enrollments()
-                    ->with('user:id,name,email')
-                    ->get()
-                    ->map(fn($e) => (object)[
-                        'id'         => $e->user->id,
-                        'name'       => $e->user->name,
-                        'email'      => $e->user->email,
-                        'created_at' => $e->created_at,
-                    ]);
-            }
+            $all = $course->students()
+                ->select('users.id','users.name','users.email')
+                ->withPivot('created_at')
+                ->orderBy('users.name')
+                ->get();
 
             $participants = [
                 'count'    => $all->count(),
@@ -120,6 +108,7 @@ class CourseController extends Controller
             ],
             'can' => [
                 'update'         => $canManage,
+                'delete'         => $canManage,
                 'manageSections' => $canManage,
                 'createLesson'   => $canManage,
                 'enrollControls' => $role === 'student'
@@ -140,30 +129,58 @@ class CourseController extends Controller
     {
         $this->authorizeByRole();
 
+        // sadece admin veya kursun eğitmeni
+        abort_unless(
+            ($this->hasRole(['admin']) || ($this->hasRole(['instructor']) && Auth::id() === $course->instructor_id)),
+            403
+        );
+
         $data = $request->validate([
             'title'        => ['required','string','max:255'],
             'description'  => ['nullable','string'],
             'price'        => ['nullable','numeric','min:0'],
             'cover_url'    => ['nullable','url','max:2048'],
             'is_published' => ['boolean'],
+            'start_date'   => ['nullable','date'],          // eklendi
         ]);
 
         $course->update($data);
 
-        return redirect()->route('courses.show', $course)->with('success','Kurs güncellendi.');
+        return redirect()->route('courses.show', $course)->with('success','Course updated.');
     }
 
     public function togglePublish(Course $course)
     {
         $this->authorizeByRole();
 
+        // sadece admin veya kursun eğitmeni
+        abort_unless(
+            ($this->hasRole(['admin']) || ($this->hasRole(['instructor']) && Auth::id() === $course->instructor_id)),
+            403
+        );
+
         $course->update(['is_published' => !$course->is_published]);
 
-        return back()->with('success', $course->is_published ? 'Kurs yayınlandı.' : 'Kurs yayından kaldırıldı.');
+        return back()->with('success', $course->is_published ? 'Course is now published.' : 'Course is now draft.');
+    }
+
+    public function destroy(Course $course)
+    {
+        $this->authorizeByRole();
+
+        // sadece admin veya kursun eğitmeni
+        abort_unless(
+            ($this->hasRole(['admin']) || ($this->hasRole(['instructor']) && Auth::id() === $course->instructor_id)),
+            403
+        );
+
+        $course->delete();
+
+        return redirect()->route('courses.index')->with('success', 'Course deleted.');
     }
 
     /**
-     * Eğitmen için tam katılımcı listesi (JSON)
+     * Instructor için tam katılımcı listesi (JSON)
      */
     public function participants(Request $request, Course $course)
     {
@@ -175,30 +192,18 @@ class CourseController extends Controller
 
         $perPage = (int) $request->integer('per_page', 20);
 
-        if (method_exists($course, 'students')) {
-            $paginator = $course->students()
-                ->select('users.id','users.name','users.email')
-                ->withPivot('created_at')
-                ->orderBy('users.name')
-                ->paginate($perPage);
-            $items = $paginator->map(fn($u) => [
-                'id'        => $u->id,
-                'name'      => $u->name,
-                'email'     => $u->email,
-                'joined_at' => optional($u->pivot?->created_at)->toDateTimeString(),
-            ]);
-        } else {
-            $paginator = $course->enrollments()
-                ->with('user:id,name,email')
-                ->orderBy('created_at','desc')
-                ->paginate($perPage);
-            $items = $paginator->map(fn($e) => [
-                'id'        => $e->user->id,
-                'name'      => $e->user->name,
-                'email'     => $e->user->email,
-                'joined_at' => optional($e->created_at)->toDateTimeString(),
-            ]);
-        }
+        $paginator = $course->students()
+            ->select('users.id','users.name','users.email')
+            ->withPivot('created_at')
+            ->orderBy('users.name')
+            ->paginate($perPage);
+
+        $items = $paginator->map(fn($u) => [
+            'id'        => $u->id,
+            'name'      => $u->name,
+            'email'     => $u->email,
+            'joined_at' => optional($u->pivot?->created_at)->toDateTimeString(),
+        ]);
 
         return response()->json([
             'data'       => $items,

@@ -20,6 +20,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/courses',        [CourseController::class, 'store'])->name('courses.store');
         Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->whereNumber('course')->name('courses.edit');
         Route::put('/courses/{course}', [CourseController::class, 'update'])->whereNumber('course')->name('courses.update');
+
+        // 🔥 kurs silme route’u
+        Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->whereNumber('course')->name('courses.destroy');
+
         Route::post('/courses/{course}/toggle-publish', [CourseController::class, 'togglePublish'])->whereNumber('course')->name('courses.togglePublish');
 
         // EĞİTMEN: Katılımcı listesi (JSON)

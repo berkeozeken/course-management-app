@@ -8,7 +8,17 @@ use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvid
 
 class AuthServiceProvider extends ServiceProvider
 {
-    protected $policies = [ Course::class => CoursePolicy::class ];
+    /**
+     * The policy mappings for the application.
+     *
+     * @var array<class-string, class-string>
+     */
+    protected $policies = [
+        Course::class => CoursePolicy::class,
+    ];
 
-    public function boot(): void { /* auto-discovery ok */ }
+    public function boot(): void
+    {
+        // Gate::policy otomatikten önce burada tanımlı.
+    }
 }

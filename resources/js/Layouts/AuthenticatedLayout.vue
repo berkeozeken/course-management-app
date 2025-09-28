@@ -1,45 +1,49 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3'
-const user = usePage().props.auth?.user
+import { computed } from 'vue'
+
+const page = usePage()
+const user = computed(() => page.props.auth?.user || null)
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100">
-    <!-- Top Bar -->
-    <nav class="bg-white border-b border-gray-200">
-      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="flex h-16 items-center justify-between">
-          <!-- Left -->
-          <div class="flex items-center space-x-6">
-            <Link :href="route('dashboard')" class="font-semibold">Dashboard</Link>
+  <div class="min-h-screen bg-gray-50">
+    <!-- NAV -->
+    <header class="h-14 bg-white border-b">
+      <div class="max-w-7xl mx-auto h-full px-4 flex items-center justify-between">
+        <nav class="flex items-center gap-4">
+          <Link href="/dashboard" class="font-semibold hover:underline">Dashboard</Link>
+          <Link href="/courses" class="hover:underline">Courses</Link>
+        </nav>
 
-            <!-- NAV EKLEMELERİ -->
-            <Link :href="route('courses.index')" class="text-sm hover:underline">
-              Courses
-            </Link>
-
-            <template v-if="user && (user.role === 'instructor' || user.role === 'admin')">
-              <!-- MUTLAK LİNK -->
-              <Link :href="route('courses.create')" class="text-sm hover:underline">
-                + New Course
-              </Link>
-            </template>
-            <!-- /NAV EKLEMELERİ -->
-          </div>
-
-          <!-- Right -->
-          <div class="flex items-center space-x-4">
-            <span class="text-sm" v-if="user">{{ user.name }}</span>
-            <Link method="post" :href="route('logout')" as="button" class="text-sm hover:underline">
+        <div class="flex items-center gap-3">
+          <template v-if="user">
+            <span class="text-sm text-gray-700">{{ user.name }}</span>
+            <Link
+              href="/logout"
+              method="post"
+              as="button"
+              class="text-sm text-gray-600 hover:underline"
+            >
               Logout
             </Link>
-          </div>
+          </template>
+          <template v-else>
+            <Link href="/login" class="text-sm text-gray-600 hover:underline">Login</Link>
+          </template>
         </div>
       </div>
-    </nav>
+    </header>
 
-    <!-- Page -->
-    <main>
+    <!-- OPTIONAL header slot -->
+    <div v-if="$slots.header" class="bg-white border-b">
+      <div class="max-w-7xl mx-auto px-4 py-4">
+        <slot name="header" />
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <main class="max-w-7xl mx-auto p-6">
       <slot />
     </main>
   </div>

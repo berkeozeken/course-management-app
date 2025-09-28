@@ -1,71 +1,124 @@
 <script setup>
-import { reactive, watch } from 'vue'
-import { router } from '@inertiajs/vue3'
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
+import { Head, Link, useForm } from '@inertiajs/vue3'
 
-const form = reactive({
+const form = useForm({
   title: '',
-  slug: '',
   description: '',
-  status: 'draft',
+  price: '',
+  cover_url: '',
+  is_published: false,
 })
 
-// Title değişince slug otomatik oluştur
-watch(() => form.title, (t) => {
-  form.slug = t
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-})
-
-function submit() {
-  router.post('/courses', form)
+const submit = () => {
+  form.post(route('courses.store'), {
+    preserveScroll: true,
+  })
 }
 </script>
 
 <template>
-  <div class="p-6 max-w-xl space-y-3">
-    <h1 class="text-xl font-semibold">New Course</h1>
+  <Head title="Yeni Kurs" />
 
-    <input v-model="form.title" placeholder="Title" class="border p-2 w-full" />
-    <input v-model="form.slug" placeholder="Slug" class="border p-2 w-full" />
-    <textarea v-model="form.description" placeholder="Description" class="border p-2 w-full" />
-    <select v-model="form.status" class="border p-2 w-full">
-      <option value="draft">Draft</option>
-      <option value="published">Published</option>
-    </select>
+  <AuthenticatedLayout>
+    <template #header>
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold leading-tight text-gray-800">
+          Yeni Kurs
+        </h2>
+        <Link
+          :href="route('courses.index')"
+          class="rounded-lg border px-3 py-1.5 text-sm text-gray-700 bg-white hover:bg-gray-50"
+        >
+          ← Kurslar
+        </Link>
+      </div>
+    </template>
 
-    <button @click="submit" class="bg-black text-white px-4 py-2 rounded">Create</button>
-  </div>
-</template>
-<script setup>
-import { reactive, watch } from 'vue'
-import { router } from '@inertiajs/vue3'
-import MainLayout from '@/Layouts/MainLayout.vue'
-import BackLink from '@/Components/BackLink.vue'
-defineOptions({ layout: MainLayout })
+    <div class="py-8">
+      <div class="mx-auto max-w-3xl">
+        <form @submit.prevent="submit" class="space-y-6 bg-white rounded-2xl p-6 shadow">
+          <!-- Başlık -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Başlık *</label>
+            <input
+              v-model="form.title"
+              type="text"
+              class="mt-1 block w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="Örn. Vue 3 ile Inertia.js"
+              required
+            />
+            <div v-if="form.errors.title" class="mt-1 text-sm text-red-600">{{ form.errors.title }}</div>
+          </div>
 
-const form = reactive({ title:'', slug:'', description:'', status:'draft' })
-watch(() => form.title, (t) => {
-  form.slug = t.toLowerCase().replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-')
-})
-function submit(){ router.post('/courses', form) }
-</script>
+          <!-- Açıklama -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Açıklama</label>
+            <textarea
+              v-model="form.description"
+              rows="5"
+              class="mt-1 block w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="Kurs açıklaması..."
+            />
+            <div v-if="form.errors.description" class="mt-1 text-sm text-red-600">{{ form.errors.description }}</div>
+          </div>
 
-<template>
-  <div class="p-6 max-w-xl space-y-3">
-    <div class="flex items-center justify-between">
-      <h1 class="text-xl font-semibold">New Course</h1>
-      <BackLink />
+          <!-- Fiyat & Yayın -->
+          <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Fiyat (₺)</label>
+              <input
+                v-model="form.price"
+                type="number"
+                min="0"
+                step="1"
+                class="mt-1 block w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="Ücretsiz için boş bırak"
+              />
+              <div v-if="form.errors.price" class="mt-1 text-sm text-red-600">{{ form.errors.price }}</div>
+            </div>
+
+            <div class="flex items-center gap-3 pt-6">
+              <input
+                id="is_published"
+                v-model="form.is_published"
+                type="checkbox"
+                class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label for="is_published" class="text-sm text-gray-700">Yayınla (taslak için kapalı bırak)</label>
+            </div>
+          </div>
+
+          <!-- Kapak URL -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Kapak Görseli URL</label>
+            <input
+              v-model="form.cover_url"
+              type="url"
+              class="mt-1 block w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="https://..."
+            />
+            <div v-if="form.errors.cover_url" class="mt-1 text-sm text-red-600">{{ form.errors.cover_url }}</div>
+          </div>
+
+          <!-- Aksiyonlar -->
+          <div class="flex items-center justify-end gap-3">
+            <Link
+              :href="route('courses.index')"
+              class="rounded-lg border px-4 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50"
+            >
+              İptal
+            </Link>
+            <button
+              type="submit"
+              :disabled="form.processing"
+              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Kaydet
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
-
-    <input v-model="form.title" placeholder="Title" class="border p-2 w-full" />
-    <input v-model="form.slug" placeholder="Slug" class="border p-2 w-full" />
-    <textarea v-model="form.description" placeholder="Description" class="border p-2 w-full" />
-    <select v-model="form.status" class="border p-2 w-full">
-      <option value="draft">Draft</option>
-      <option value="published">Published</option>
-    </select>
-    <button @click="submit" class="bg-black text-white px-4 py-2 rounded">Create</button>
-  </div>
+  </AuthenticatedLayout>
 </template>

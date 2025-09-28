@@ -1,76 +1,87 @@
 <script setup>
-import { computed, reactive } from 'vue'
-import { Link, router, usePage } from '@inertiajs/vue3'
-import MainLayout from '@/Layouts/MainLayout.vue'
-import BackLink from '@/Components/BackLink.vue'
-defineOptions({ layout: MainLayout })
+import { Head, Link, usePage } from '@inertiajs/vue3'
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
+defineOptions({ layout: AuthenticatedLayout })
 
-const page = usePage()
-const user = page.props.auth?.user ?? null
-const canManage = computed(() => ['admin','instructor'].includes(user?.role))
-const courses = page.props.courses ?? []
-
-const q = reactive({ text: '', status: 'all' })
-const filtered = computed(() => {
-  const t = q.text.toLowerCase()
-  return courses.filter(c => {
-    const textOk = !t || (c.title?.toLowerCase().includes(t) || c.slug?.toLowerCase().includes(t))
-    const statusOk = q.status === 'all' || c.status === q.status
-    return textOk && statusOk
-  })
+const props = defineProps({
+  courses: Object, // pagination
 })
 
-function destroyCourse(slug) {
-  if (!confirm('Bu kursu silmek istiyor musun?')) return
-  router.delete(`/courses/${slug}`, { preserveScroll: true })
-}
+const authUser = usePage().props.auth?.user
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-semibold">Courses</h1>
-      <BackLink />
-    </div>
+  <Head title="Courses" />
 
-    <div class="flex items-center justify-between">
-      <div class="flex gap-3 items-center w-full">
-        <input v-model="q.text" placeholder="Search by title or slug..." class="border p-2 rounded w-full" />
-        <select v-model="q.status" class="border p-2 rounded">
-          <option value="all">All</option>
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-        </select>
-      </div>
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-xl font-semibold">Courses</h1>
 
-      <Link v-if="canManage" href="/courses/create" class="ml-4 bg-black text-white px-4 py-2 rounded">
-        New Course
+    <Link
+      v-if="authUser && ['admin','instructor'].includes((authUser.role || '').toLowerCase())"
+      href="/courses/create"
+      class="px-3 py-1.5 rounded-xl border bg-white hover:bg-gray-50 text-sm"
+    >
+      + Yeni Kurs
+    </Link>
+  </div>
+
+  <div class="grid sm:grid-cols-2 gap-6">
+    <div
+      v-for="course in props.courses.data"
+      :key="course.id"
+      class="rounded-2xl border bg-white overflow-hidden"
+    >
+      <Link :href="`/courses/${course.id}`">
+        <div class="h-40 bg-gray-100 flex items-center justify-center">
+          <img
+            v-if="course.cover_url"
+            :src="course.cover_url"
+            alt=""
+            class="w-full h-40 object-cover"
+          />
+          <span v-else class="text-gray-400 text-sm">Kapak yok</span>
+        </div>
       </Link>
-    </div>
 
-    <div class="grid md:grid-cols-2 gap-4">
-      <div v-for="c in filtered" :key="c.id" class="border rounded p-4 flex flex-col justify-between">
-        <div class="space-y-1">
-          <Link :href="`/courses/${c.slug}`" class="text-lg font-semibold hover:underline">{{ c.title }}</Link>
-          <p class="text-sm text-gray-600">{{ c.description ?? '—' }}</p>
-          <div class="text-xs text-gray-500">
-            <span class="inline-block px-2 py-0.5 rounded border"
-                  :class="c.status === 'published' ? 'border-green-500' : 'border-gray-400'">
-              {{ c.status }}
-            </span>
-            <span class="ml-2">Enrollments: {{ c.enrollments_count ?? 0 }}</span>
-          </div>
+      <div class="p-4 space-y-1">
+        <div class="text-xs text-gray-500">
+          <span class="font-medium">Eğitmen:</span>
+          <span>
+            {{
+              (course.instructor?.id && authUser?.id && course.instructor.id === authUser.id)
+                ? 'Sen'
+                : (course.instructor?.name ?? '—')
+            }}
+          </span>
         </div>
-        <div class="mt-4 flex gap-2">
-          <Link :href="`/courses/${c.slug}`" class="px-3 py-2 border rounded">View</Link>
-          <template v-if="canManage">
-            <Link :href="`/courses/${c.slug}/edit`" class="px-3 py-2 border rounded">Edit</Link>
-            <button @click="destroyCourse(c.slug)" class="px-3 py-2 border rounded">Delete</button>
-          </template>
+
+        <Link :href="`/courses/${course.id}`" class="block font-medium hover:underline">
+          {{ course.title }}
+        </Link>
+
+        <div class="text-xs text-gray-500">
+          {{ course.is_published ? 'Yayında' : 'Taslak' }}
+        </div>
+
+        <div class="text-right text-sm text-gray-700 mt-2">
+          {{ course.price ? `₺${Number(course.price).toLocaleString('tr-TR')}` : 'Ücretsiz' }}
         </div>
       </div>
     </div>
+  </div>
 
-    <div v-if="!filtered.length" class="text-sm text-gray-500">No courses found.</div>
+  <!-- basit pagination -->
+  <div class="mt-8 flex items-center gap-2">
+    <Link
+      v-if="props.courses.prev_page_url"
+      :href="props.courses.prev_page_url"
+      class="px-3 py-1.5 rounded-lg border bg-white text-sm"
+    >« Previous</Link>
+    <span class="text-sm">Sayfa {{ props.courses.current_page }}</span>
+    <Link
+      v-if="props.courses.next_page_url"
+      :href="props.courses.next_page_url"
+      class="px-3 py-1.5 rounded-lg border bg-white text-sm"
+    >Next »</Link>
   </div>
 </template>

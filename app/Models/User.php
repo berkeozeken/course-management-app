@@ -2,61 +2,71 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\Hash;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
-    use HasApiTokens, HasFactory, Notifiable;
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'name', 'email', 'password', 'role',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
-        'password',
-        'remember_token',
+        'password', 'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+
+    /* =========================
+     |  RELATIONS
+     |=========================*/
+
+    // Öğrenci olarak kayıtlı olduğu kurslar
+    public function courses()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->belongsToMany(Course::class, 'course_user')->withTimestamps();
     }
 
-    public function enrollments()
+    // Eğitmen olduğu kurslar
+    public function instructedCourses()
     {
-        return $this->hasMany(\App\Models\Enrollment::class);
+        return $this->hasMany(Course::class, 'instructor_id');
     }
 
-    public function coursesEnrolled()
+    /* =========================
+     |  ROLE HELPERS
+     |=========================*/
+
+    public function role(): string
     {
-        return $this->belongsToMany(\App\Models\Course::class, 'enrollments')
-            ->withTimestamps()
-            ->withPivot('status');
+        return strtolower($this->attributes['role'] ?? 'student');
     }
 
+    public function isAdmin(): bool      { return $this->role() === 'admin'; }
+    public function isInstructor(): bool { return $this->role() === 'instructor'; }
+    public function isStudent(): bool    { return $this->role() === 'student'; }
+
+    /* =========================
+     |  HELPERS
+     |=========================*/
+
+    public function enrolledIn(int $courseId): bool
+    {
+        return $this->courses()->whereKey($courseId)->exists();
+    }
+
+    // Güvenli parola set etme (zaten hash'li ise tekrar hash'leme)
+    public function setPasswordAttribute($value): void
+    {
+        if (!$value) return;
+        $this->attributes['password'] = str_starts_with((string)$value, '$2y$')
+            ? $value
+            : Hash::make($value);
+    }
 }

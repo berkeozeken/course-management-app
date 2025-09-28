@@ -1,34 +1,48 @@
 <script setup>
-import { Link, router, usePage } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
+import { computed } from 'vue'
 
 const page = usePage()
-const user = page.props.auth?.user ?? null
-
-function logout() {
-  router.post('/logout')
-}
+// sadece inertia shared props'tan oku; başka yerden asla!
+const user = computed(() => page.props.auth?.user || null)
 </script>
 
 <template>
-  <div>
-    <!-- Navbar -->
-    <nav class="border-b bg-white">
-      <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-        <div class="flex items-center gap-6">
-          <Link href="/dashboard" class="font-semibold">Dashboard</Link>
-          <Link href="/courses">Courses</Link>
-        </div>
+  <div class="min-h-screen bg-gray-50">
+    <!-- NAVBAR -->
+    <header class="h-14 bg-white border-b">
+      <div class="max-w-6xl mx-auto h-full px-4 flex items-center justify-between">
+        <nav class="flex items-center gap-4">
+          <Link href="/dashboard" class="font-semibold hover:underline">Dashboard</Link>
+          <Link href="/courses" class="hover:underline">Courses</Link>
+        </nav>
 
-        <div class="flex items-center gap-4">
-          <span v-if="user">{{ user.name }}</span>
-          <button @click="logout" class="text-sm underline">Logout</button>
+        <div class="flex items-center gap-3">
+          <template v-if="user">
+            <span class="text-sm text-gray-700">{{ user.name }}</span>
+            <Link
+              href="/logout"
+              method="post"
+              as="button"
+              class="text-sm text-gray-600 hover:underline"
+            >
+              Logout
+            </Link>
+          </template>
+          <template v-else>
+            <Link href="/login" class="text-sm text-gray-600 hover:underline">Login</Link>
+          </template>
         </div>
       </div>
-    </nav>
+    </header>
 
-    <!-- Page container -->
-    <main class="max-w-6xl mx-auto px-4 py-6">
+    <!-- CONTENT -->
+    <main class="max-w-6xl mx-auto p-6">
       <slot />
     </main>
   </div>
 </template>
+
+<style scoped>
+/* basit resetler */
+</style>

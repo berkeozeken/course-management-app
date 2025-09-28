@@ -1,32 +1,45 @@
 <script setup>
-import { ref } from 'vue'
-import axios from 'axios'
+import { router } from '@inertiajs/vue3'
 
 const props = defineProps({
-  courseId: { type: Number, required: true },
-  initialStatus: { type: String, default: 'none' } // 'active' | 'none'
+  courseId:     { type: Number,  required: true },
+  isPublished:  { type: Boolean, required: true },
+  enrolled:     { type: Boolean, default: false },
 })
 
-const status = ref(props.initialStatus)
+const enroll = () => {
+  if (!props.isPublished || props.enrolled) return
+  router.post(route('courses.enroll', props.courseId), {}, { preserveScroll: true })
+}
 
-async function enroll() {
-  try {
-    await axios.post('/enrollments', { course_id: props.courseId }) // web route (session auth)
-    status.value = 'active'
-  } catch (e) {
-    console.error(e)
-    alert('Kayıt sırasında bir hata oluştu.')
-  }
+const unenroll = () => {
+  if (!props.enrolled) return
+  if (!confirm('Kayıt silinsin mi?')) return
+  router.delete(route('courses.unenroll', props.courseId), { preserveScroll: true })
 }
 </script>
 
 <template>
-  <button
-    v-if="status !== 'active'"
-    @click="enroll"
-    class="bg-black text-white px-3 py-2 rounded"
-  >
-    Kursa Kaydol
-  </button>
-  <span v-else class="px-3 py-2 border rounded">Kaydolundu</span>
+  <div class="flex gap-2">
+    <!-- kayıtlı değilse: Kayıt Ol (yayında değilse disable) -->
+    <button
+      v-if="!enrolled"
+      class="px-4 py-2 rounded-xl bg-indigo-600 text-white disabled:opacity-50 disabled:cursor-not-allowed w-full"
+      :disabled="!isPublished"
+      @click="enroll"
+      :title="isPublished ? 'Kayıt ol' : 'Bu kurs taslak, kayıt açılamaz.'"
+    >
+      Kayıt Ol
+    </button>
+
+    <!-- kayıtlıysa: Ayrıl -->
+    <button
+      v-else
+      class="px-4 py-2 rounded-xl bg-gray-200 text-gray-800 w-full"
+      @click="unenroll"
+      title="Kayıtlısın — ayrıl"
+    >
+      Ayrıl
+    </button>
+  </div>
 </template>

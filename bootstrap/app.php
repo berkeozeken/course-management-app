@@ -10,19 +10,17 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
-        // Web middleware grubuna Inertia ve preload header ekleri
+    ->withMiddleware(function (Middleware $middleware) {
+        // Inertia paylaşımları (auth.user & flash)
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        // === Middleware alias'ları (Laravel 11) ===
+        // Custom alias'lar
         $middleware->alias([
-            'role' => \App\Http\Middleware\EnsureRole::class, // <- bizim rol kontrolümüz
+            'role' => \App\Http\Middleware\EnsureRole::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions): void {
+    ->withExceptions(function (Exceptions $exceptions) {
         //
-    })
-    ->create();
+    })->create();

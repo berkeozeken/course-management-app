@@ -2,48 +2,43 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Enrollment;
+use App\Models\Course;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class EnrollmentController extends Controller
 {
-    // Kullanıcının kayıtları
-    public function index(Request $req)
+    public function store(Course $course)
     {
-        $items = Enrollment::with('course:id,title')
-            ->where('user_id', $req->user()->id)
-            ->latest()
-            ->get();
+        $user = Auth::user();
+        if (!$user) abort(403);
 
-        return response()->json($items);
-    }
-
-    // Kursa kaydol
-    public function store(Request $req)
-    {
-        $data = $req->validate([
-            'course_id' => ['required','exists:courses,id'],
-        ]);
-
-        $enrollment = Enrollment::firstOrCreate(
-            ['user_id' => $req->user()->id, 'course_id' => $data['course_id']],
-            ['status' => 'active']
-        );
-
-        // Daha önce iptal edildiyse tekrar aktif et
-        if ($enrollment->status !== 'active') {
-            $enrollment->update(['status' => 'active']);
+        if (!$course->is_published) {
+            return back()->with('error', 'Taslak kursa kayıt olunamaz.');
         }
 
-        return response()->json($enrollment, 201);
+        // ilişki adı student(s) veya enrollments'e göre uyumlu olsun
+        if (method_exists($course, 'students')) {
+            $course->students()->syncWithoutDetaching([$user->id]);
+        } else {
+            // eğer farklıysa, uygun ilişkiyi kullan
+            $course->enrollments()->create(['user_id' => $user->id]);
+        }
+
+        return back()->with('success', 'Kursa kayıt oldunuz.');
     }
 
-    // Kaydı iptal (soft cancel: status=cancelled)
-    public function destroy(Request $req, Enrollment $enrollment)
+    public function destroy(Course $course)
     {
-        abort_if($enrollment->user_id !== $req->user()->id, 403, 'Forbidden');
+        $user = Auth::user();
+        if (!$user) abort(403);
 
-        $enrollment->update(['status' => 'cancelled']);
-        return response()->noContent();
+        if (method_exists($course, 'students')) {
+            $course->students()->detach($user->id);
+        } else {
+            $course->enrollments()->where('user_id', $user->id)->delete();
+        }
+
+        return back()->with('success', 'Kayıt silindi.');
     }
 }

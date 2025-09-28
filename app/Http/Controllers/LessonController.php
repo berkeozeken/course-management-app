@@ -5,81 +5,128 @@ namespace App\Http\Controllers;
 use App\Models\Lesson;
 use App\Models\Section;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class LessonController extends Controller
 {
-    public function store(Request $r)
+    private function ensureInstructor(): void
     {
-        // Hem section_id hem course_id destekli
-        $data = $r->validate([
-            'section_id' => ['sometimes','nullable','exists:sections,id'],
-            'course_id'  => ['sometimes','nullable','exists:courses,id'],
-            'title'      => ['required','string','max:255'],
-            'content'    => ['nullable','string'],
-            'position'   => ['nullable','integer','min:1'],
-            'is_free'    => ['sometimes','boolean'],
-        ]);
-
-        // En az birinden biri gelmeli
-        if (empty($data['section_id']) && empty($data['course_id'])) {
-            throw ValidationException::withMessages([
-                'section_id' => 'section_id veya course_id zorunlu.',
-            ]);
-        }
-
-        // Hedef section'ı belirle/oluştur
-        if (!empty($data['section_id'])) {
-            $sectionId = $data['section_id'];
-        } else {
-            // course_id verildiyse o kursun ilk section'ını bul; yoksa oluştur
-            $section = Section::where('course_id', $data['course_id'])
-                ->orderBy('position')
-                ->first();
-
-            if (!$section) {
-                $section = Section::create([
-                    'course_id' => $data['course_id'],
-                    'title'     => 'General',
-                    'position'  => 1,
-                ]);
-            }
-            $sectionId = $section->id;
-        }
-
-        $lesson = Lesson::create([
-            'section_id' => $sectionId,
-            'title'      => $data['title'],
-            'content'    => $data['content'] ?? null,
-            'position'   => $data['position'] ?? 1,
-            'is_free'    => (bool)($data['is_free'] ?? false),
-        ]);
-
-        return response()->json($lesson, 201);
+        $role = strtolower(Auth::user()->role ?? '');
+        abort_unless(in_array($role, ['admin','instructor'], true), 403);
     }
 
-    public function update(Request $r, Lesson $lesson)
+    public function create(Section $section)
     {
-        $data = $r->validate([
-            'title'    => ['required','string','max:255'],
-            'content'  => ['nullable','string'],
-            'position' => ['nullable','integer','min:1'],
-            'is_free'  => ['sometimes','boolean'],
+        $this->ensureInstructor();
+        $section->load('course:id,title');
+        return Inertia::render('Lessons/Create', ['section' => $section]);
+    }
+
+    public function store(Request $request, Section $section)
+    {
+        $this->ensureInstructor();
+
+        $data = $request->validate([
+            'title'            => ['required','string','max:255'],
+            'content'          => ['nullable','string'],
+            'video_url'        => ['nullable','url','max:2048'],
+            'duration_minutes' => ['nullable','integer','min:0'],
+            'is_free'          => ['boolean'],
         ]);
 
-        $lesson->update([
-            'title'    => $data['title'],
-            'content'  => $data['content'] ?? $lesson->content,
-            'position' => $data['position'] ?? $lesson->position,
-            'is_free'  => array_key_exists('is_free',$data) ? (bool)$data['is_free'] : $lesson->is_free,
+        $position = (int) ($section->lessons()->max('position') + 1);
+
+        Lesson::create(array_merge($data, [
+            'section_id' => $section->id,
+            'position'   => $position,
+        ]));
+
+        return redirect()->route('courses.show', $section->course_id)->with('success', 'Ders eklendi.');
+    }
+
+    public function show(Lesson $lesson)
+    {
+        $lesson->load('section.course.instructor:id,name');
+
+        $userId      = Auth::id();
+        $course      = $lesson->section->course;
+        $isInstructor= $userId && $course->instructor_id === $userId;
+        $isEnrolled  = $course->isEnrolledBy($userId);
+        $canWatch    = $isInstructor || $isEnrolled || $lesson->is_free;
+
+        // Kursun tüm derslerini sıralı tek listeye aç
+        $course->load([
+            'sections' => fn($q) => $q->orderBy('id'),
+            'sections.lessons' => fn($q) => $q->orderBy('position')->orderBy('id'),
         ]);
 
-        return response()->json($lesson);
+        $flat = [];
+        foreach ($course->sections as $s) {
+            foreach ($s->lessons as $ls) {
+                $flat[] = [
+                    'id'      => $ls->id,
+                    'title'   => $ls->title,
+                    'section' => ['id' => $s->id, 'title' => $s->title],
+                ];
+            }
+        }
+
+        $idx    = array_search($lesson->id, array_column($flat, 'id'), true);
+        $prevId = $idx !== false && $idx > 0 ? $flat[$idx - 1]['id'] : null;
+        $nextId = $idx !== false && $idx < count($flat) - 1 ? $flat[$idx + 1]['id'] : null;
+
+        return Inertia::render('Lessons/Show', [
+            'lesson' => [
+                'id'               => $lesson->id,
+                'title'            => $lesson->title,
+                'content'          => $lesson->content,
+                'video_url'        => $lesson->video_url,
+                'duration_minutes' => $lesson->duration_minutes,
+                'is_free'          => (bool) $lesson->is_free,
+                'section'          => ['id' => $lesson->section->id, 'title' => $lesson->section->title],
+            ],
+            'course' => [
+                'id'    => $course->id,
+                'title' => $course->title,
+            ],
+            'nav'      => ['prev' => $prevId, 'next' => $nextId],
+            'is_last'  => $nextId === null,   // <<< SON DERS Mİ?
+            'canWatch' => $canWatch,
+            'canEdit'  => $isInstructor,
+        ]);
+    }
+
+    public function edit(Lesson $lesson)
+    {
+        $this->ensureInstructor();
+        $lesson->load('section.course:id,title');
+        return Inertia::render('Lessons/Edit', ['lesson' => $lesson]);
+    }
+
+    public function update(Request $request, Lesson $lesson)
+    {
+        $this->ensureInstructor();
+
+        $data = $request->validate([
+            'title'            => ['required','string','max:255'],
+            'content'          => ['nullable','string'],
+            'video_url'        => ['nullable','url','max:2048'],
+            'duration_minutes' => ['nullable','integer','min:0'],
+            'is_free'          => ['boolean'],
+        ]);
+
+        $lesson->update($data);
+
+        return redirect()->route('courses.show', $lesson->section->course_id)->with('success','Ders güncellendi.');
     }
 
     public function destroy(Lesson $lesson)
     {
+        $this->ensureInstructor();
+        $courseId = $lesson->section->course_id;
         $lesson->delete();
-        return response()->noContent();
+
+        return redirect()->route('courses.show', $courseId)->with('success','Ders silindi.');
     }
 }

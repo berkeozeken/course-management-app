@@ -29,10 +29,11 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 FROM alpine:3.20
 WORKDIR /var/www/html
 
-# Runtime paketleri (php83 ve gerekli ext'ler)
+# Runtime paketleri (php83 ve gerekli ext'ler + DOM/XML eklendi)
 RUN apk add --no-cache \
     nginx php83 php83-fpm php83-opcache php83-session php83-pdo php83-pdo_pgsql php83-pdo_mysql \
-    php83-mbstring php83-xml php83-curl php83-zip php83-gd php83-intl php83-fileinfo \
+    php83-mbstring php83-xml php83-xmlreader php83-xmlwriter php83-dom php83-curl php83-zip \
+    php83-gd php83-intl php83-fileinfo \
     supervisor bash curl
 
 # php cli kısayolu (artisan için) — varsa dokunma

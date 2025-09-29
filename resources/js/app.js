@@ -1,31 +1,24 @@
-import '../css/app.css';
-import './bootstrap';
+import '../css/app.css'
+import './bootstrap'
 
-import { createApp, h } from 'vue';
-import { createInertiaApp } from '@inertiajs/vue3';
-import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-import { ZiggyVue } from 'ziggy-js';
+import { createInertiaApp } from '@inertiajs/vue3'
+import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
+import { createApp, h } from 'vue'
+import { ZiggyVue } from 'ziggy-js'
+import route from 'ziggy-js'            // sadece helper
+window.route = route                    // componentlerde this.$route değil, route() kullanabil
 
-/* global Ziggy */ // @routes ile global'e eklenen config
-
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Laravel'
 
 createInertiaApp({
   title: (title) => `${title} - ${appName}`,
   resolve: (name) =>
-    resolvePageComponent(
-      `./Pages/${name}.vue`,
-      import.meta.glob('./Pages/**/*.vue'),
-    ),
+    resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
   setup({ el, App, props, plugin }) {
-    const app = createApp({ render: () => h(App, props) })
+    return createApp({ render: () => h(App, props) })
       .use(plugin)
-      .use(ZiggyVue, Ziggy);
-
-    app.mount(el);
-    return app;
+      .use(ZiggyVue)                   
+      .mount(el)
   },
-  progress: {
-    color: '#4B5563',
-  },
-});
+  progress: { color: '#4B5563' },
+})

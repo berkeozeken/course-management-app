@@ -50,9 +50,10 @@ COPY .deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # app dosyaları (phpdeps & assets’ten)
 COPY --from=phpdeps /var/www/html /var/www/html
 
-# storage izinleri
-RUN adduser -D -g 'www' nginx \
- && chown -R nginx:nginx /var/www/html/storage /var/www/html/bootstrap/cache
+# storage izinleri (nginx zaten var, yeniden eklemeye gerek yok)
+RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
+ && chown -R nginx:nginx /var/www/html/storage /var/www/html/bootstrap/cache \
+ && chmod -R ug+rwX /var/www/html/storage /var/www/html/bootstrap/cache
 
 ENV APP_ENV=production \
     APP_DEBUG=false \

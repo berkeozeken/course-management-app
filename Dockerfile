@@ -35,8 +35,8 @@ RUN apk add --no-cache \
     php83-mbstring php83-xml php83-curl php83-zip php83-gd php83-intl php83-fileinfo \
     supervisor bash curl
 
-# php cli kısayolu (artisan için)
-RUN ln -s /usr/bin/php83 /usr/bin/php
+# php cli kısayolu (artisan için) — varsa dokunma
+RUN [ -e /usr/bin/php ] || ln -s /usr/bin/php83 /usr/bin/php
 
 # php-fpm socket ayarı
 RUN sed -i 's|;daemonize = yes|daemonize = no|g' /etc/php83/php-fpm.conf \
@@ -65,13 +65,7 @@ ENV APP_ENV=production \
 
 EXPOSE 80
 
-# ====== ÖNEMLİ ======
-# Free planda Shell yok; artisan komutlarını runtime’da çalıştır:
-# - cache temizliği
-# - migrate --force
-# - storage:link
-# - izinler
-# sonra supervisor ile nginx+php-fpm başlat
+# Free planda Shell yok; artisan komutlarını runtime’da çalıştır ve sonra supervisor başlat
 CMD ["bash","-lc","php artisan config:clear \
  && php artisan route:clear \
  && php artisan view:clear \

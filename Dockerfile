@@ -67,11 +67,14 @@ ENV APP_ENV=production \
 EXPOSE 80
 
 # Free planda Shell yok; artisan komutlarını runtime’da çalıştır ve sonra supervisor başlat
-CMD ["bash","-lc","php artisan config:clear \
- && php artisan route:clear \
- && php artisan view:clear \
- && php artisan optimize:clear \
- && php artisan migrate --force \
- && php artisan storage:link || true \
- && chmod -R ug+rwx storage bootstrap/cache \
- && supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
+CMD ["bash","-lc","\
+export CACHE_STORE=file CACHE_DRIVER=file; \
+php artisan config:clear && \
+php artisan route:clear && \
+php artisan view:clear && \
+php artisan cache:clear --store=file && \
+php artisan clear-compiled && \
+php artisan migrate --force && \
+php artisan storage:link || true && \
+chmod -R ug+rwx storage bootstrap/cache && \
+supervisord -c /etc/supervisor/conf.d/supervisord.conf"]

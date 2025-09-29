@@ -68,10 +68,11 @@ EXPOSE 80
 
 # Free planda Shell yok; artisan komutlarını runtime’da çalıştır ve sonra supervisor başlat
 CMD ["bash","-lc","\
+export CACHE_STORE=file CACHE_DRIVER=file SESSION_DRIVER=file; \
 php artisan config:clear && \
 php artisan route:clear && \
 php artisan view:clear && \
-php artisan cache:clear && \
+php artisan cache:clear file && \
 php artisan clear-compiled && \
 php artisan migrate --force && \
 php artisan storage:link || true && \

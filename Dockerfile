@@ -35,6 +35,9 @@ RUN apk add --no-cache \
     php83-mbstring php83-xml php83-curl php83-zip php83-gd php83-intl php83-fileinfo \
     supervisor bash curl
 
+# php cli kısayolu (artisan için)
+RUN ln -s /usr/bin/php83 /usr/bin/php
+
 # php-fpm socket ayarı
 RUN sed -i 's|;daemonize = yes|daemonize = no|g' /etc/php83/php-fpm.conf \
  && sed -i 's|^user = nobody|user = nginx|g' /etc/php83/php-fpm.d/www.conf \
@@ -50,14 +53,30 @@ COPY .deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # app dosyaları (phpdeps & assets’ten)
 COPY --from=phpdeps /var/www/html /var/www/html
 
-# storage izinleri (nginx zaten var, yeniden eklemeye gerek yok)
+# storage izinleri
 RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
  && chown -R nginx:nginx /var/www/html/storage /var/www/html/bootstrap/cache \
  && chmod -R ug+rwX /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Production env vars (Render tarafında da tanımlanacak)
 ENV APP_ENV=production \
     APP_DEBUG=false \
     LOG_CHANNEL=stderr
 
 EXPOSE 80
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
+# ====== ÖNEMLİ ======
+# Free planda Shell yok; artisan komutlarını runtime’da çalıştır:
+# - cache temizliği
+# - migrate --force
+# - storage:link
+# - izinler
+# sonra supervisor ile nginx+php-fpm başlat
+CMD ["bash","-lc","php artisan config:clear \
+ && php artisan route:clear \
+ && php artisan view:clear \
+ && php artisan optimize:clear \
+ && php artisan migrate --force \
+ && php artisan storage:link || true \
+ && chmod -R ug+rwx storage bootstrap/cache \
+ && supervisord -c /etc/supervisor/conf.d/supervisord.conf"]

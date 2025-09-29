@@ -14,7 +14,6 @@ class CourseController extends Controller
     {
         $q = Course::with('instructor:id,name')->latest('id');
 
-        // student sadece yayında olanları görsün
         if ($this->hasRole(['student'])) {
             $q->where('is_published', true);
         }
@@ -40,7 +39,7 @@ class CourseController extends Controller
             'price'        => ['nullable','numeric','min:0'],
             'cover_url'    => ['nullable','url','max:2048'],
             'is_published' => ['boolean'],
-            'start_date'   => ['nullable','date'],          // eklendi
+            'start_date'   => ['nullable','date'],
         ]);
 
         $course = Course::create([
@@ -51,7 +50,7 @@ class CourseController extends Controller
             'cover_url'     => $data['cover_url'] ?? null,
             'is_published'  => $data['is_published'] ?? false,
             'instructor_id' => Auth::id(),
-            'start_date'    => $data['start_date'] ?? null, // eklendi
+            'start_date'    => $data['start_date'] ?? null,
         ]);
 
         return redirect()->route('courses.show', $course->id)->with('success','Course created.');
@@ -65,12 +64,10 @@ class CourseController extends Controller
         $userId = Auth::id();
         $role   = strtolower($user->role ?? '');
 
-        // student taslak kursu görmesin
         if ($role === 'student' && !$course->is_published) {
             abort(404);
         }
 
-        // kayıt kontrolü
         $isEnrolled = false;
         if ($userId) {
             if (method_exists($course, 'isEnrolledBy')) {
@@ -80,11 +77,9 @@ class CourseController extends Controller
             }
         }
 
-        // yönetim yetkisi: admin veya kursun eğitmeni
         $canManage = $this->hasRole(['admin','instructor']) &&
                      ($role === 'admin' || $course->instructor_id === $userId);
 
-        // Eğitmen için katılımcılar (sayı + ilk 10)
         $participants = null;
         if ($canManage) {
             $all = $course->students()
@@ -129,7 +124,6 @@ class CourseController extends Controller
     {
         $this->authorizeByRole();
 
-        // sadece admin veya kursun eğitmeni
         abort_unless(
             ($this->hasRole(['admin']) || ($this->hasRole(['instructor']) && Auth::id() === $course->instructor_id)),
             403
@@ -141,7 +135,7 @@ class CourseController extends Controller
             'price'        => ['nullable','numeric','min:0'],
             'cover_url'    => ['nullable','url','max:2048'],
             'is_published' => ['boolean'],
-            'start_date'   => ['nullable','date'],          // eklendi
+            'start_date'   => ['nullable','date'],
         ]);
 
         $course->update($data);
@@ -153,7 +147,6 @@ class CourseController extends Controller
     {
         $this->authorizeByRole();
 
-        // sadece admin veya kursun eğitmeni
         abort_unless(
             ($this->hasRole(['admin']) || ($this->hasRole(['instructor']) && Auth::id() === $course->instructor_id)),
             403
@@ -168,7 +161,6 @@ class CourseController extends Controller
     {
         $this->authorizeByRole();
 
-        // sadece admin veya kursun eğitmeni
         abort_unless(
             ($this->hasRole(['admin']) || ($this->hasRole(['instructor']) && Auth::id() === $course->instructor_id)),
             403
@@ -179,12 +171,8 @@ class CourseController extends Controller
         return redirect()->route('courses.index')->with('success', 'Course deleted.');
     }
 
-    /**
-     * Instructor için tam katılımcı listesi (JSON)
-     */
     public function participants(Request $request, Course $course)
     {
-        // sadece admin veya kursun eğitmeni
         abort_unless(
             ($this->hasRole(['admin']) || ( $this->hasRole(['instructor']) && Auth::id() === $course->instructor_id )),
             403
@@ -211,6 +199,39 @@ class CourseController extends Controller
             'per_page'   => $paginator->perPage(),
             'current'    => $paginator->currentPage(),
             'last_page'  => $paginator->lastPage(),
+        ]);
+    }
+
+    /** My Courses (student) */
+    public function my()
+    {
+        abort_unless(strtolower(Auth::user()->role ?? '') === 'student', 403);
+
+        $userId = Auth::id();
+        $courses = Course::with('instructor:id,name')
+            ->join('course_user as cu', 'cu.course_id', '=', 'courses.id')
+            ->where('cu.user_id', $userId)
+            ->orderBy('cu.created_at', 'desc')
+            ->select('courses.*', 'cu.created_at as enrolled_at')
+            ->paginate(12);
+
+        return Inertia::render('Courses/MyCourses', ['courses' => $courses]);
+    }
+
+    /** My Teachings (instructor/admin) */
+    public function myTeachings()
+    {
+        abort_unless($this->hasRole(['admin','instructor']), 403);
+
+        $userId = Auth::id();
+
+        $courses = Course::with('instructor:id,name')
+            ->where('instructor_id', $userId)
+            ->latest('id')
+            ->paginate(12);
+
+        return Inertia::render('Courses/MyTeachings', [
+            'courses' => $courses,
         ]);
     }
 

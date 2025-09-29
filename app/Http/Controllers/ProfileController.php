@@ -2,62 +2,69 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\ProfileUpdateRequest;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProfileController extends Controller
 {
     /**
-     * Display the user's profile form.
+     * Profile ana sayfası (görüntüleme)
      */
-    public function edit(Request $request): Response
+    public function show(): Response
     {
-        return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
-            'status' => session('status'),
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        return Inertia::render('Profile/Index', [
+            'auth' => [
+                'user' => $user?->only(['id', 'name', 'email', 'role']),
+            ],
+            'flash' => [
+                'success' => session('success'),
+            ],
         ]);
     }
 
     /**
-     * Update the user's profile information.
+     * Hesap bilgilerini güncelle (isim / email)
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function updateAccount(Request $request)
     {
-        $request->user()->fill($request->validated());
+        $data = $request->validate([
+            'name'  => ['required', 'string', 'max:255'],
+            'email' => [
+                'required', 'string', 'email', 'max:255',
+                Rule::unique('users', 'email')->ignore(Auth::id()),
+            ],
+        ]);
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
-        }
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $user->update($data);
 
-        $request->user()->save();
-
-        return Redirect::route('profile.edit');
+        return back()->with('success', 'Profile updated.');
     }
 
     /**
-     * Delete the user's account.
+     * Parola güncelle
      */
-    public function destroy(Request $request): RedirectResponse
+    public function updatePassword(Request $request)
     {
         $request->validate([
-            'password' => ['required', 'current_password'],
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        $user = $request->user();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $user->update([
+            'password' => Hash::make($request->password),
+        ]);
 
-        Auth::logout();
-
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return Redirect::to('/');
+        return back()->with('success', 'Password changed.');
     }
 }

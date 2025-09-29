@@ -3,42 +3,33 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class EnrollmentController extends Controller
 {
     public function store(Course $course)
     {
-        $user = Auth::user();
-        if (!$user) abort(403);
+        $userId = Auth::id();
 
-        if (!$course->is_published) {
-            return back()->with('error', 'Taslak kursa kayıt olunamaz.');
+        // güvenlik: published değilse ya da eğitmenin kendisiyse engelle
+        if (!$course->is_published || $course->instructor_id === $userId) {
+            return redirect()->route('courses.show', $course->id)
+                ->with('error', 'Enrollment is not available for this course.');
         }
 
-        // ilişki adı student(s) veya enrollments'e göre uyumlu olsun
-        if (method_exists($course, 'students')) {
-            $course->students()->syncWithoutDetaching([$user->id]);
-        } else {
-            // eğer farklıysa, uygun ilişkiyi kullan
-            $course->enrollments()->create(['user_id' => $user->id]);
-        }
+        $course->enroll($userId);
 
-        return back()->with('success', 'Kursa kayıt oldunuz.');
+        // KURSTA KAL → sağdaki panelde "Unenroll" + "Start Learning" görünecek
+        return redirect()->route('courses.show', $course->id)
+            ->with('success', 'Enrolled successfully.');
     }
 
     public function destroy(Course $course)
     {
-        $user = Auth::user();
-        if (!$user) abort(403);
+        $course->unenroll(Auth::id());
 
-        if (method_exists($course, 'students')) {
-            $course->students()->detach($user->id);
-        } else {
-            $course->enrollments()->where('user_id', $user->id)->delete();
-        }
-
-        return back()->with('success', 'Kayıt silindi.');
+        // yine kursta kal
+        return redirect()->route('courses.show', $course->id)
+            ->with('success', 'Enrollment removed.');
     }
 }

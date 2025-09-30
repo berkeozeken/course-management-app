@@ -29,23 +29,22 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 FROM alpine:3.20
 WORKDIR /var/www/html
 
-# Runtime paketleri (php83 ve gerekli ext'ler + DOM/XML)
+# Runtime paketleri
 RUN apk add --no-cache \
     nginx php83 php83-fpm php83-opcache php83-session php83-pdo php83-pdo_pgsql php83-pdo_mysql \
     php83-mbstring php83-xml php83-xmlreader php83-xmlwriter php83-dom php83-curl php83-zip \
     php83-gd php83-intl php83-fileinfo \
     supervisor bash curl
 
-# php cli kısayolu (artisan için) — varsa dokunma
+# php cli kısayolu (artisan için)
 RUN [ -e /usr/bin/php ] || ln -s /usr/bin/php83 /usr/bin/php
 
-# php-fpm socket ayarı
+# php-fpm ayarları (TCP 9000 kullanılıyor; socket'e ÇEVİRMİYORUZ)
 RUN sed -i 's|;daemonize = yes|daemonize = no|g' /etc/php83/php-fpm.conf \
  && sed -i 's|^user = nobody|user = nginx|g' /etc/php83/php-fpm.d/www.conf \
- && sed -i 's|^group = nobody|group = nginx|g' /etc/php83/php-fpm.d/www.conf \
- && sed -i 's|^;listen.owner = nobody|listen.owner = nginx|g' /etc/php83/php-fpm.d/www.conf \
- && sed -i 's|^;listen.group = nobody|listen.group = nginx|g' /etc/php83/php-fpm.d/www.conf \
- && sed -i 's|^listen = 127.0.0.1:9000|listen = /run/php-fpm.sock|g' /etc/php83/php-fpm.d/www.conf
+ && sed -i 's|^group = nobody|group = nginx|g' /etc/php83/php-fpm.d/www.conf
+# NOT: Aşağıdaki satırı ARTIK kullanmıyoruz (socket değil TCP):
+# && sed -i 's|^listen = 127.0.0.1:9000|listen = /run/php-fpm.sock|g' /etc/php83/php-fpm.d/www.conf
 
 # nginx & supervisor config
 COPY .deploy/nginx.conf /etc/nginx/http.d/default.conf
@@ -59,7 +58,7 @@ RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
  && chown -R nginx:nginx /var/www/html \
  && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# ENV — loglar stderr'e, debug geçici olarak açık (sorunu görünce tekrar false yap)
+# ENV
 ENV APP_ENV=production \
     APP_DEBUG=true \
     LOG_CHANNEL=stderr \
@@ -67,14 +66,14 @@ ENV APP_ENV=production \
 
 EXPOSE 80
 
-# Free planda Shell yok; artisan komutlarını runtime’da çalıştır ve sonra supervisor başlat
+# Boot sırasında artisan komutları (DB hazır değilse servis düşmesin diye migrate'e || true)
 CMD ["bash","-lc","\
 php artisan config:clear && \
 php artisan route:clear && \
 php artisan view:clear && \
 php artisan cache:clear && \
 php artisan clear-compiled && \
-php artisan migrate --force && \
+php artisan migrate --force || true && \
 php artisan storage:link || true && \
 chmod -R ug+rwx storage bootstrap/cache && \
 supervisord -c /etc/supervisor/conf.d/supervisord.conf"]

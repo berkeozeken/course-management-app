@@ -1,2 +1,19 @@
+# Environment files
 .env
 .env.*
+
+# Node / Frontend
+node_modules
+/public/hot
+/public/build
+
+# Laravel cache & storage (yapılandırmaya göre)
+storage/*
+!storage/app
+!storage/app/public
+bootstrap/cache/*.php
+
+# VCS / IDE
+.git
+.gitignore
+.DS_Store

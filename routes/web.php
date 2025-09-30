@@ -7,6 +7,8 @@ use App\Http\Controllers\LessonController;
 use App\Http\Controllers\ProfileController; // <<< EKLENDİ
 use Illuminate\Support\Facades\Route;
 
+Route::get('/_ping', fn() => response('pong', 200));
+
 Route::get('/', fn () => redirect()->route('dashboard'));
 
 Route::middleware(['auth'])->group(function () {

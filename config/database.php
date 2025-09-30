@@ -9,20 +9,15 @@ return [
     | Default Database Connection Name
     |--------------------------------------------------------------------------
     */
-    'default' => env('DB_CONNECTION', 'pgsql'), // .env ile override edeceksin
+    'default' => env('DB_CONNECTION', 'pgsql'),
 
     /*
     |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
-    |
-    | Local için "pgsql", Render için "pgsql_internal" veya "pgsql_external"
-    | kullan. Hangi bağlantının kullanılacağını .env'deki DB_CONNECTION belirler.
-    |
     */
     'connections' => [
 
-        // LOCAL (senin .env'in)
         'pgsql' => [
             'driver'   => 'pgsql',
             'url'      => env('DATABASE_URL'),
@@ -35,40 +30,9 @@ return [
             'prefix'   => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode'  => env('DB_SSLMODE', 'disable'),
+            'sslmode'  => env('DB_SSLMODE', 'prefer'),
         ],
 
-        // RENDER - INTERNAL (aynı region/network; ssl disable)
-        'pgsql_internal' => [
-            'driver'   => 'pgsql',
-            'host'     => env('DB_HOST_INTERNAL'),
-            'port'     => env('DB_PORT_INTERNAL', '5432'),
-            'database' => env('DB_DATABASE_INTERNAL'),
-            'username' => env('DB_USERNAME_INTERNAL'),
-            'password' => env('DB_PASSWORD_INTERNAL'),
-            'charset'  => 'utf8',
-            'prefix'   => '',
-            'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode'  => env('DB_SSLMODE_INTERNAL', 'disable'),
-        ],
-
-        // RENDER - EXTERNAL (public hostname; ssl require)
-        'pgsql_external' => [
-            'driver'   => 'pgsql',
-            'host'     => env('DB_HOST_EXTERNAL'),
-            'port'     => env('DB_PORT_EXTERNAL', '5432'),
-            'database' => env('DB_DATABASE_EXTERNAL'),
-            'username' => env('DB_USERNAME_EXTERNAL'),
-            'password' => env('DB_PASSWORD_EXTERNAL'),
-            'charset'  => 'utf8',
-            'prefix'   => '',
-            'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode'  => env('DB_SSLMODE_EXTERNAL', 'require'),
-        ],
-
-        // Diğer örnekler (değiştirmene gerek yok)
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),

@@ -10,6 +10,9 @@ RUN npm run build
 FROM php:8.3-fpm-alpine AS phpdeps
 WORKDIR /var/www/html
 
+# Build aşamasında DB probunu kapat (AppServiceProvider bunu görüp DB'ye dokunmaz)
+ENV SKIP_DB_PROBE=1
+
 RUN apk add --no-cache \
       git unzip libpng-dev libjpeg-turbo-dev libwebp-dev libzip-dev oniguruma-dev icu-dev postgresql-dev \
   && docker-php-ext-configure gd --with-jpeg --with-webp \
@@ -63,7 +66,13 @@ RUN mkdir -p \
 # Basit sağlık dosyası
 RUN printf "<?php echo 'OK';" > /var/www/html/public/health.php
 
-ENV APP_ENV=production APP_DEBUG=false LOG_CHANNEL=stderr LOG_LEVEL=debug
+# Runtime ENV — DB probu artık açık
+ENV SKIP_DB_PROBE=0 \
+    APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stderr \
+    LOG_LEVEL=debug
+
 EXPOSE 80
 
 # Boot komutları
@@ -76,4 +85,3 @@ php artisan storage:link || true && \
 php artisan config:cache && php artisan route:cache && php artisan view:cache && \
 chmod -R 777 storage bootstrap/cache && \
 supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
-

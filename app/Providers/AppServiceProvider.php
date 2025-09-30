@@ -10,35 +10,34 @@ use Illuminate\Support\Facades\DB;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
 
-        // Render'da HTTPS zorunlu
+        // HTTPS (Render)
         if (app()->environment('production')) {
             URL::forceScheme('https');
-
             if (config('app.url')) {
                 URL::forceRootUrl(config('app.url'));
             }
         }
 
-        // === DB ROUTE: internal -> external fallback (5 dk cache) ===
+        // === Build sırasında DB probunu atla ===
+        // Docker build'te php artisan package:discover çağrılır; env yokken DB'ye dokunma.
+        if (env('SKIP_DB_PROBE', false)) {
+            return;
+        }
+
+        // === DB ROTASI: internal -> external (5 dk cache) ===
         $chosen = Cache::remember('db_route_choice', 300, function () {
             try {
                 DB::purge('pgsql_internal');
-                DB::connection('pgsql_internal')->getPdo(); // hızlı ping
+                DB::connection('pgsql_internal')->getPdo();
                 return 'pgsql_internal';
             } catch (\Throwable $e) {
                 return 'pgsql_external';

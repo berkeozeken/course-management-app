@@ -54,11 +54,13 @@ COPY --from=phpdeps /var/www/html /var/www/html
 
 # storage/cache klasörleri ve izinler
 RUN mkdir -p \
-    /var/www/html/storage/framework/{cache,sessions,views} \
+    /var/www/html/storage/framework/cache/data \
+    /var/www/html/storage/framework/sessions \
+    /var/www/html/storage/framework/views \
     /var/www/html/bootstrap/cache \
     /run/nginx \
  && chown -R nginx:nginx /var/www/html/storage /var/www/html/bootstrap/cache \
- && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+ && chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # ENV (loglar stderr'e)
 ENV APP_ENV=production \
@@ -71,7 +73,8 @@ EXPOSE 80
 # Boot sırasında artisan komutları
 # (DB ilk anda hazır değilse servis düşmesin diye migrate'e || true)
 CMD ["bash","-lc","\
-mkdir -p storage/framework/views && \
+mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache && \
+chmod -R 777 storage bootstrap/cache && \
 php artisan config:clear && \
 php artisan route:clear && \
 php artisan view:clear && \
@@ -79,5 +82,5 @@ php artisan cache:clear && \
 php artisan clear-compiled && \
 php artisan migrate --force || true && \
 php artisan storage:link || true && \
-chmod -R ug+rwx storage bootstrap/cache && \
+chmod -R 777 storage bootstrap/cache && \
 supervisord -c /etc/supervisor/conf.d/supervisord.conf"]

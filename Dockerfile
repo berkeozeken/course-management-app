@@ -29,7 +29,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 FROM alpine:3.20
 WORKDIR /var/www/html
 
-# Runtime paketleri (php83 ve gerekli ext'ler + DOM/XML eklendi)
+# Runtime paketleri (php83 ve gerekli ext'ler + DOM/XML)
 RUN apk add --no-cache \
     nginx php83 php83-fpm php83-opcache php83-session php83-pdo php83-pdo_pgsql php83-pdo_mysql \
     php83-mbstring php83-xml php83-xmlreader php83-xmlwriter php83-dom php83-curl php83-zip \
@@ -54,28 +54,27 @@ COPY .deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # app dosyaları (phpdeps & assets’ten)
 COPY --from=phpdeps /var/www/html /var/www/html
 
-# storage izinleri
+# storage ve tüm proje izinleri
 RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
- && chown -R nginx:nginx /var/www/html/storage /var/www/html/bootstrap/cache \
- && chmod -R ug+rwX /var/www/html/storage /var/www/html/bootstrap/cache
+ && chown -R nginx:nginx /var/www/html \
+ && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Production env vars (Render tarafında da tanımlanacak)
+# ENV — loglar stderr'e, debug geçici olarak açık (sorunu görünce tekrar false yap)
 ENV APP_ENV=production \
-    APP_DEBUG=false \
-    LOG_CHANNEL=stderr
+    APP_DEBUG=true \
+    LOG_CHANNEL=stderr \
+    LOG_LEVEL=debug
 
 EXPOSE 80
 
 # Free planda Shell yok; artisan komutlarını runtime’da çalıştır ve sonra supervisor başlat
 CMD ["bash","-lc","\
-export CACHE_STORE=file CACHE_DRIVER=file SESSION_DRIVER=file; \
 php artisan config:clear && \
 php artisan route:clear && \
 php artisan view:clear && \
-php artisan cache:clear file && \
+php artisan cache:clear && \
 php artisan clear-compiled && \
 php artisan migrate --force && \
 php artisan storage:link || true && \
 chmod -R ug+rwx storage bootstrap/cache && \
 supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
-

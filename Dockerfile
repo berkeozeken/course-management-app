@@ -18,11 +18,10 @@ RUN apk add --no-cache \
   && docker-php-ext-install -j"$(nproc)" gd pdo pdo_mysql pdo_pgsql mbstring zip intl
 
 # Uygulama dosyaları ve composer
-# (Build çıktılarını da içerdiği için tüm proje kopyalanıyor)
 COPY --from=assets /app /var/www/html
 COPY composer.json composer.lock* ./
 
-# Composer kur & bağımlılıkları indir
+# Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
   && composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
@@ -30,29 +29,30 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 FROM alpine:3.20
 WORKDIR /var/www/html
 
-# Runtime paketleri
+# Paketler
 RUN apk add --no-cache \
     nginx php83 php83-fpm php83-opcache php83-session php83-pdo php83-pdo_pgsql php83-pdo_mysql \
     php83-mbstring php83-xml php83-xmlreader php83-xmlwriter php83-dom php83-curl php83-zip \
     php83-gd php83-intl php83-fileinfo \
     supervisor bash curl
 
-# php cli kısayolu (artisan için)
+# php cli
 RUN [ -e /usr/bin/php ] || ln -s /usr/bin/php83 /usr/bin/php
 
-# php-fpm ayarları (TCP 9000; socket KULLANMIYORUZ)
+# php-fpm (TCP 9000'a ZORLA)
 RUN sed -i 's|;daemonize = yes|daemonize = no|g' /etc/php83/php-fpm.conf \
- && sed -i 's|^user = nobody|user = nginx|g' /etc/php83/php-fpm.d/www.conf \
- && sed -i 's|^group = nobody|group = nginx|g' /etc/php83/php-fpm.d/www.conf
+ && sed -i 's|^user = .*|user = nginx|g' /etc/php83/php-fpm.d/www.conf \
+ && sed -i 's|^group = .*|group = nginx|g' /etc/php83/php-fpm.d/www.conf \
+ && sed -i 's|^listen = .*|listen = 127.0.0.1:9000|g' /etc/php83/php-fpm.d/www.conf
 
-# nginx & supervisor config
+# Nginx & Supervisor config
 COPY .deploy/nginx.conf /etc/nginx/http.d/default.conf
 COPY .deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# App dosyaları (phpdeps aşamasından)
+# App dosyaları
 COPY --from=phpdeps /var/www/html /var/www/html
 
-# storage/cache klasörleri ve izinler
+# storage/cache klasörleri + izinler
 RUN mkdir -p \
     /var/www/html/storage/framework/cache/data \
     /var/www/html/storage/framework/sessions \
@@ -62,7 +62,7 @@ RUN mkdir -p \
  && chown -R nginx:nginx /var/www/html/storage /var/www/html/bootstrap/cache \
  && chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# ENV (loglar stderr'e)
+# ENV
 ENV APP_ENV=production \
     APP_DEBUG=true \
     LOG_CHANNEL=stderr \
@@ -70,8 +70,7 @@ ENV APP_ENV=production \
 
 EXPOSE 80
 
-# Boot sırasında artisan komutları
-# (DB ilk anda hazır değilse servis düşmesin diye migrate'e || true)
+# Boot komutları
 CMD ["bash","-lc","\
 mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache && \
 chmod -R 777 storage bootstrap/cache && \

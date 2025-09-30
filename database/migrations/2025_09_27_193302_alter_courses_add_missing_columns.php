@@ -8,11 +8,11 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        // 1) Kolonları güvenle ekle
         Schema::table('courses', function (Blueprint $table) {
-            // instructor_id'yi ÖNCE nullable ekle
             if (!Schema::hasColumn('courses', 'instructor_id')) {
                 $table->foreignId('instructor_id')
-                      ->nullable()                 // <-- ÖNEMLİ
+                      ->nullable()
                       ->after('id');
             }
 
@@ -39,39 +39,37 @@ return new class extends Migration {
             }
         });
 
-        // İstersen burada eski kayıtların instructor_id'sini bir kullanıcıya bağla:
-        // Örn: ilk kullanıcıya set et (opsiyonel)
-        // $firstUserId = DB::table('users')->min('id');
-        // if ($firstUserId) {
-        //     DB::table('courses')->whereNull('instructor_id')->update(['instructor_id' => $firstUserId]);
-        // }
+        // 2) FK'yi çakışmadan ekle (PostgreSQL için mevcutsa önce düşür)
+        if (Schema::hasColumn('courses', 'instructor_id')) {
+            // Bazı ortamlarda aynı isimli constraint zaten var olabiliyor
+            DB::statement('ALTER TABLE "courses" DROP CONSTRAINT IF EXISTS "courses_instructor_id_foreign";');
 
-        // Sonrasında FK oluştur (nullable olduğu için sorun olmaz)
-        Schema::table('courses', function (Blueprint $table) {
-            // bazı DB'lerde yeniden çağırmak gerekir
-            if (Schema::hasColumn('courses', 'instructor_id')) {
-                $table->foreign('instructor_id')->references('id')->on('users')->nullOnDelete();
-            }
-        });
-
-        // Eğer yukarıda backfill yaptıysan (hepsi doluysa) istersen NOT NULL'a çevirebilirsin:
-        // Schema::table('courses', function (Blueprint $table) {
-        //     $table->foreignId('instructor_id')->nullable(false)->change();
-        // });
+            Schema::table('courses', function (Blueprint $table) {
+                // FK'yi yeniden tanımla (nullable olduğundan NULL silmede sorun olmaz)
+                $table->foreign('instructor_id')
+                      ->references('id')->on('users')
+                      ->nullOnDelete()
+                      ->cascadeOnUpdate();
+            });
+        }
     }
 
     public function down(): void
     {
+        // FK'yi güvenle kaldır
+        DB::statement('ALTER TABLE "courses" DROP CONSTRAINT IF EXISTS "courses_instructor_id_foreign";');
+
         Schema::table('courses', function (Blueprint $table) {
             if (Schema::hasColumn('courses', 'instructor_id')) {
-                $table->dropForeign(['instructor_id']);
                 $table->dropColumn('instructor_id');
             }
+
             foreach (['title','slug','description','price','cover_url','is_published'] as $col) {
                 if (Schema::hasColumn('courses', $col)) {
                     $table->dropColumn($col);
                 }
             }
+
             if (Schema::hasColumn('courses', 'created_at')) {
                 $table->dropTimestamps();
             }

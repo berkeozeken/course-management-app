@@ -83,7 +83,6 @@ CMD ["bash","-lc","\
 mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache && \
 chmod -R 777 storage bootstrap/cache && \
 php artisan optimize:clear || true && \
-php artisan migrate --force && \
 php artisan storage:link || true && \
 php artisan config:cache && php artisan route:cache && php artisan view:cache && \
 chmod -R 777 storage bootstrap/cache && \

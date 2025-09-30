@@ -31,13 +31,8 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
 
-            // --- SSL/TLS seçenekleri (libpq'ya aktarılır) ---
-            // Render public Postgres için önerilen:
-            'sslmode'     => env('DB_SSLMODE', 'require'), // require | verify-ca | verify-full
-            'sslrootcert' => env('DB_SSLROOTCERT', null),  // /etc/ssl/certs/ca-certificates.crt
-            'sslcert'     => env('DB_SSLCERT', null),      // opsiyonel (client cert)
-            'sslkey'      => env('DB_SSLKEY', null),       // opsiyonel (client key)
-            'sslcrl'      => env('DB_SSLCRL', null),       // opsiyonel (CRL yolu)
+            // --- SSL (Render public Postgres için yeterli) ---
+            'sslmode' => env('DB_SSLMODE', 'require'),
         ],
 
         'sqlite' => [

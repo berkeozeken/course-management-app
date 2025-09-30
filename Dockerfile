@@ -29,7 +29,7 @@ WORKDIR /var/www/html
 RUN apk add --no-cache \
     nginx php83 php83-fpm php83-opcache php83-session php83-pdo php83-pdo_pgsql php83-pdo_mysql \
     php83-mbstring php83-xml php83-xmlreader php83-xmlwriter php83-dom php83-curl php83-zip \
-    php83-gd php83-intl php83-fileinfo \
+    php83-gd php83-intl php83-fileinfo php83-tokenizer \
     supervisor bash curl
 
 # php cli

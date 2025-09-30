@@ -70,12 +70,10 @@ EXPOSE 80
 CMD ["bash","-lc","\
 mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache && \
 chmod -R 777 storage bootstrap/cache && \
-php artisan config:clear || true && \
-php artisan route:clear  || true && \
-php artisan view:clear   || true && \
-php artisan cache:clear  || true && \
-php artisan clear-compiled || true && \
-php artisan migrate --force || true && \
+php artisan optimize:clear || true && \
+php artisan migrate --force && \
 php artisan storage:link || true && \
+php artisan config:cache && php artisan route:cache && php artisan view:cache && \
 chmod -R 777 storage bootstrap/cache && \
 supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
+

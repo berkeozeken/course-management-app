@@ -9,20 +9,66 @@ return [
     | Default Database Connection Name
     |--------------------------------------------------------------------------
     */
-    'default' => env('DB_CONNECTION', 'pgsql_internal'),
+    'default' => env('DB_CONNECTION', 'pgsql'), // .env ile override edeceksin
 
     /*
     |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
     |
-    | Mevcut bağlantılara ek olarak iki PG bağlantısı tanımladık:
-    |  - pgsql_internal : Render iç ağı (sslmode=disable)
-    |  - pgsql_external : Public endpoint (sslmode=require)
+    | Local için "pgsql", Render için "pgsql_internal" veya "pgsql_external"
+    | kullan. Hangi bağlantının kullanılacağını .env'deki DB_CONNECTION belirler.
     |
     */
     'connections' => [
 
+        // LOCAL (senin .env'in)
+        'pgsql' => [
+            'driver'   => 'pgsql',
+            'url'      => env('DATABASE_URL'),
+            'host'     => env('DB_HOST', '127.0.0.1'),
+            'port'     => env('DB_PORT', '5432'),
+            'database' => env('DB_DATABASE', 'forge'),
+            'username' => env('DB_USERNAME', 'forge'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset'  => 'utf8',
+            'prefix'   => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode'  => env('DB_SSLMODE', 'disable'),
+        ],
+
+        // RENDER - INTERNAL (aynı region/network; ssl disable)
+        'pgsql_internal' => [
+            'driver'   => 'pgsql',
+            'host'     => env('DB_HOST_INTERNAL'),
+            'port'     => env('DB_PORT_INTERNAL', '5432'),
+            'database' => env('DB_DATABASE_INTERNAL'),
+            'username' => env('DB_USERNAME_INTERNAL'),
+            'password' => env('DB_PASSWORD_INTERNAL'),
+            'charset'  => 'utf8',
+            'prefix'   => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode'  => env('DB_SSLMODE_INTERNAL', 'disable'),
+        ],
+
+        // RENDER - EXTERNAL (public hostname; ssl require)
+        'pgsql_external' => [
+            'driver'   => 'pgsql',
+            'host'     => env('DB_HOST_EXTERNAL'),
+            'port'     => env('DB_PORT_EXTERNAL', '5432'),
+            'database' => env('DB_DATABASE_EXTERNAL'),
+            'username' => env('DB_USERNAME_EXTERNAL'),
+            'password' => env('DB_PASSWORD_EXTERNAL'),
+            'charset'  => 'utf8',
+            'prefix'   => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode'  => env('DB_SSLMODE_EXTERNAL', 'require'),
+        ],
+
+        // Diğer örnekler (değiştirmene gerek yok)
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
@@ -75,38 +121,6 @@ return [
             ]) : [],
         ],
 
-        // === INTERNAL (Render private network) ===
-        'pgsql_internal' => [
-            'driver'   => 'pgsql',
-            'url'      => env('DB_URL'),
-            'host'     => env('DB_HOST_INTERNAL'),
-            'port'     => env('DB_PORT_INTERNAL', '5432'),
-            'database' => env('DB_DATABASE_INTERNAL'),
-            'username' => env('DB_USERNAME_INTERNAL'),
-            'password' => env('DB_PASSWORD_INTERNAL'),
-            'charset'  => env('DB_CHARSET', 'utf8'),
-            'prefix'   => '',
-            'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode'  => env('DB_SSLMODE_INTERNAL', 'disable'),
-        ],
-
-        // === EXTERNAL (public endpoint) ===
-        'pgsql_external' => [
-            'driver'   => 'pgsql',
-            'url'      => env('DB_URL'),
-            'host'     => env('DB_HOST_EXTERNAL'),
-            'port'     => env('DB_PORT_EXTERNAL', '5432'),
-            'database' => env('DB_DATABASE_EXTERNAL'),
-            'username' => env('DB_USERNAME_EXTERNAL'),
-            'password' => env('DB_PASSWORD_EXTERNAL'),
-            'charset'  => env('DB_CHARSET', 'utf8'),
-            'prefix'   => '',
-            'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode'  => env('DB_SSLMODE_EXTERNAL', 'require'),
-        ],
-
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),
@@ -118,8 +132,6 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            // 'encrypt' => env('DB_ENCRYPT', 'yes'),
-            // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
     ],
 
@@ -132,7 +144,7 @@ return [
         'client' => env('REDIS_CLIENT', 'phpredis'),
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-database-'),
+            'prefix'  => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel'), '_').'_database_'),
             'persistent' => env('REDIS_PERSISTENT', false),
         ],
         'default' => [

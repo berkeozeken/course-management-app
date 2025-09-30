@@ -5,7 +5,6 @@ namespace App\Providers;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,25 +27,15 @@ class AppServiceProvider extends ServiceProvider
         }
 
         // === Build sırasında DB probunu atla ===
-        // Docker build'te php artisan package:discover çağrılır; env yokken DB'ye dokunma.
         if (env('SKIP_DB_PROBE', false)) {
             return;
         }
 
-        // === DB ROTASI: internal -> external (5 dk cache) ===
-        $chosen = Cache::remember('db_route_choice', 300, function () {
-            try {
-                DB::purge('pgsql_internal');
-                DB::connection('pgsql_internal')->getPdo();
-                return 'pgsql_internal';
-            } catch (\Throwable $e) {
-                return 'pgsql_external';
-            }
-        });
+        // === DB default bağlantısını .env’den seçtir ===
+        // Localde DB_CONNECTION=pgsql, Render’da DB_CONNECTION=pgsql_internal olacak.
+        config(['database.default' => env('DB_CONNECTION', 'pgsql')]);
 
-        if (config('database.default') !== $chosen) {
-            config(['database.default' => $chosen]);
-            DB::purge($chosen);
-        }
+        // Bağlantıyı yenile
+        DB::purge(config('database.default'));
     }
 }

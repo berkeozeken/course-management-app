@@ -18,6 +18,7 @@ RUN apk add --no-cache \
   && docker-php-ext-install -j"$(nproc)" gd pdo pdo_mysql pdo_pgsql mbstring zip intl
 
 # Uygulama dosyaları ve composer
+# (Build çıktılarını da içerdiği için tüm proje kopyalanıyor)
 COPY --from=assets /app /var/www/html
 COPY composer.json composer.lock* ./
 
@@ -39,26 +40,27 @@ RUN apk add --no-cache \
 # php cli kısayolu (artisan için)
 RUN [ -e /usr/bin/php ] || ln -s /usr/bin/php83 /usr/bin/php
 
-# php-fpm ayarları (TCP 9000 kullanılıyor; socket'e ÇEVİRMİYORUZ)
+# php-fpm ayarları (TCP 9000; socket KULLANMIYORUZ)
 RUN sed -i 's|;daemonize = yes|daemonize = no|g' /etc/php83/php-fpm.conf \
  && sed -i 's|^user = nobody|user = nginx|g' /etc/php83/php-fpm.d/www.conf \
  && sed -i 's|^group = nobody|group = nginx|g' /etc/php83/php-fpm.d/www.conf
-# NOT: Aşağıdaki satırı ARTIK kullanmıyoruz (socket değil TCP):
-# && sed -i 's|^listen = 127.0.0.1:9000|listen = /run/php-fpm.sock|g' /etc/php83/php-fpm.d/www.conf
 
 # nginx & supervisor config
 COPY .deploy/nginx.conf /etc/nginx/http.d/default.conf
 COPY .deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# app dosyaları (phpdeps & assets’ten)
+# App dosyaları (phpdeps aşamasından)
 COPY --from=phpdeps /var/www/html /var/www/html
 
-# storage ve tüm proje izinleri
-RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
- && chown -R nginx:nginx /var/www/html \
+# storage/cache klasörleri ve izinler
+RUN mkdir -p \
+    /var/www/html/storage/framework/{cache,sessions,views} \
+    /var/www/html/bootstrap/cache \
+    /run/nginx \
+ && chown -R nginx:nginx /var/www/html/storage /var/www/html/bootstrap/cache \
  && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# ENV
+# ENV (loglar stderr'e)
 ENV APP_ENV=production \
     APP_DEBUG=true \
     LOG_CHANNEL=stderr \
@@ -66,8 +68,10 @@ ENV APP_ENV=production \
 
 EXPOSE 80
 
-# Boot sırasında artisan komutları (DB hazır değilse servis düşmesin diye migrate'e || true)
+# Boot sırasında artisan komutları
+# (DB ilk anda hazır değilse servis düşmesin diye migrate'e || true)
 CMD ["bash","-lc","\
+mkdir -p storage/framework/views && \
 php artisan config:clear && \
 php artisan route:clear && \
 php artisan view:clear && \

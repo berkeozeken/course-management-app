@@ -35,9 +35,12 @@ RUN apk add --no-cache \
 # php cli
 RUN [ -e /usr/bin/php ] || ln -s /usr/bin/php83 /usr/bin/php
 
-# php-fpm: 127.0.0.1:9000'a ZORLA (tüm pool dosyalarında)
+# php-fpm ayarları (TCP 9000 + ENV'leri PHP'ye geçir)
 RUN sed -i 's|;daemonize = yes|daemonize = no|g' /etc/php83/php-fpm.conf \
- && find /etc/php83/php-fpm.d -type f -name "*.conf" -exec sed -i 's|^user = .*|user = nginx|g;s|^group = .*|group = nginx|g;s|^listen = .*|listen = 127.0.0.1:9000|g' {} \;
+ && sed -i 's|^user = .*|user = nginx|g' /etc/php83/php-fpm.d/www.conf \
+ && sed -i 's|^group = .*|group = nginx|g' /etc/php83/php-fpm.d/www.conf \
+ && sed -i 's|^listen = .*|listen = 127.0.0.1:9000|g' /etc/php83/php-fpm.d/www.conf \
+ && sed -i 's|^;*clear_env = .*|clear_env = no|g' /etc/php83/php-fpm.d/www.conf
 
 # Nginx & Supervisor config
 COPY .deploy/nginx.conf /etc/nginx/http.d/default.conf
@@ -56,7 +59,7 @@ RUN mkdir -p \
  && chown -R nginx:nginx /var/www/html/storage /var/www/html/bootstrap/cache \
  && chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Basit sağlık sayfası (opsiyonel ama debug için iyi)
+# Basit sağlık dosyası
 RUN printf "<?php echo 'OK';" > /var/www/html/public/health.php
 
 ENV APP_ENV=production APP_DEBUG=false LOG_CHANNEL=stderr LOG_LEVEL=debug

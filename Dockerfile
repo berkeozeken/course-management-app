@@ -40,7 +40,8 @@ RUN sed -i 's|;daemonize = yes|daemonize = no|g' /etc/php83/php-fpm.conf \
  && sed -i 's|^user = .*|user = nginx|g' /etc/php83/php-fpm.d/www.conf \
  && sed -i 's|^group = .*|group = nginx|g' /etc/php83/php-fpm.d/www.conf \
  && sed -i 's|^listen = .*|listen = 127.0.0.1:9000|g' /etc/php83/php-fpm.d/www.conf \
- && sed -i 's|^;*clear_env = .*|clear_env = no|g' /etc/php83/php-fpm.d/www.conf
+ && echo "clear_env = no" >> /etc/php83/php-fpm.d/www.conf \
+ && echo "listen = 127.0.0.1:9000" >> /etc/php83/php-fpm.d/www.conf
 
 # Nginx & Supervisor config
 COPY .deploy/nginx.conf /etc/nginx/http.d/default.conf

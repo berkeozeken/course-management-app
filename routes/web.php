@@ -4,8 +4,10 @@ use App\Http\Controllers\CourseController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\LessonController;
-use App\Http\Controllers\ProfileController; // <<< EKLENDİ
+use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;        // <<< eklendi
+use App\Models\User;                // <<< eklendi
 
 Route::get('/_ping', fn() => response('pong', 200));
 
@@ -27,7 +29,7 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('role:admin,instructor')
         ->name('courses.myTeachings');
 
-    // PROFILE (gör – güncelle – şifre değiştir)
+    // PROFILE
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/profile', [ProfileController::class, 'updateAccount'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
@@ -68,6 +70,33 @@ Route::middleware(['auth'])->group(function () {
 
     // course show
     Route::get('/courses/{course}', [CourseController::class, 'show'])->whereNumber('course')->name('courses.show');
+});
+
+/*
+|--------------------------------------------------------------------------
+| One-time admin grant route (temporary)
+|--------------------------------------------------------------------------
+| Token: mySecretAdminPass2025
+| Mail : admin@gmail.com
+| KULLANDIKTAN SONRA BU BLOĞU SİL!
+*/
+Route::get('/one-time-make-admin', function (Request $request) {
+    abort_unless(app()->environment('production'), 403);
+
+    $token = env('ADMIN_GRANT_TOKEN');
+    abort_unless($token && hash_equals($token, (string) $request->query('k')), 403);
+
+    $email = 'admin@gmail.com';
+    $user = User::where('email', $email)->first();
+
+    if (! $user) {
+        return "Kullanıcı bulunamadı: {$email}";
+    }
+
+    $user->role = 'admin';
+    $user->save();
+
+    return "Admin yapıldı: {$user->email}";
 });
 
 require __DIR__.'/auth.php';
